@@ -1,0 +1,41 @@
+#!/bin/bash
+set -eu -o pipefail
+
+# step 1 build applications
+BUILDER=$(buildah from quay.io/gmagnotta/openjdk11_ubi8_jmods)
+
+buildah add --chown=java $BUILDER . /tmp/src/
+
+buildah config --workingdir '/tmp/src/' $BUILDER
+
+buildah run $BUILDER -- ./gradlew assemble
+
+# step 2 build server image
+SERVER=$(buildah from registry.access.redhat.com/ubi9/openjdk-11-runtime@sha256:993044fd9c0f9615bb96e4162b19c7f4d1597695c46849d1a5e224706e3aa35f)
+
+buildah copy --chown 185:0 --from $BUILDER $SERVER /tmp/src/server/build/libs/robocode-tankroyale-server-0.23.0.jar /opt/robocode/
+
+buildah config --workingdir '/opt/robocode' $SERVER
+buildah config --entrypoint '["/usr/bin/java"]' $SERVER
+buildah config --cmd '-jar robocode-tankroyale-server-0.23.0.jar' $SERVER
+
+buildah commit $SERVER robocodeserver
+buildah rm $SERVER
+
+# step 3 build bot image
+BOT=$(buildah from registry.access.redhat.com/ubi9/openjdk-11-runtime@sha256:993044fd9c0f9615bb96e4162b19c7f4d1597695c46849d1a5e224706e3aa35f)
+
+buildah copy --chown 185:0 --from $BUILDER $BOT /tmp/src/bot-api/java/build/libs/robocode-tankroyale-bot-api-0.23.0.jar /opt/robocode/lib/
+buildah copy --chown 185:0 --from $BUILDER $BOT /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.java /opt/robocode/
+buildah copy --chown 185:0 --from $BUILDER $BOT /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.json /opt/robocode/
+buildah copy --chown 185:0 $BOT scripts/start.sh /opt/robocode/
+
+buildah config --workingdir '/opt/robocode' $BOT
+buildah config --entrypoint '["/opt/robocode/start.sh"]' $BOT
+buildah config --env SERVER_URL=ws://localhost:7654 $BOT
+
+buildah commit $BOT robocodebot
+buildah rm $BOT
+
+# purge
+buildah rm $BUILDER
