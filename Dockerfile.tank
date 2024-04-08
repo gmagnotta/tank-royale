@@ -1,0 +1,11 @@
+FROM compiled-artifacts as artifacts
+
+FROM runtime-image-arm
+COPY --chown 185:0 --from artifacts /tmp/src/bot-api/java/build/libs/robocode-tankroyale-bot-api-0.23.0.jar /opt/robocode/lib/
+COPY --chown 185:0 --from artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.java /opt/robocode/
+COPY --chown 185:0 --from artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.json /opt/robocode/
+COPY --chown 185:0 scripts/start.sh /opt/robocode/
+
+WORKDIR /opt/robocode
+ENTRYPOINT ["/opt/robocode/start.sh"]
+ENV SERVER_URL=ws://localhost:7654
