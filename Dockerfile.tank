@@ -1,11 +1,15 @@
-FROM compiled-artifacts as artifacts
+ARG COMPILED_ARTIFACTS_IMAGE=compiled-artifacts
+ARG RUNTIME_IMAGE_ARG=runtime-image-arm
 
-FROM runtime-image-arm
-COPY --chown 185:0 --from artifacts /tmp/src/bot-api/java/build/libs/robocode-tankroyale-bot-api-0.23.0.jar /opt/robocode/lib/
-COPY --chown 185:0 --from artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.java /opt/robocode/
-COPY --chown 185:0 --from artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.json /opt/robocode/
-COPY --chown 185:0 scripts/start.sh /opt/robocode/
+FROM $COMPILED_ARTIFACTS_IMAGE as artifacts
+
+FROM $RUNTIME_IMAGE_ARG as runtime
+COPY --chown=185:0 --from=artifacts /tmp/src/bot-api/java/build/libs/robocode-tankroyale-bot-api-0.23.0.jar /opt/robocode/lib/
+COPY --chown=185:0 --from=artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.java /opt/robocode/
+COPY --chown=185:0 --from=artifacts /tmp/src/sample-bots/java/MyFirstBot/MyFirstBot.json /opt/robocode/
 
 WORKDIR /opt/robocode
-ENTRYPOINT ["/opt/robocode/start.sh"]
+ENTRYPOINT ["java"]
+CMD ["-cp", "lib/*", "MyFirstBot.java"]
+
 ENV SERVER_URL=ws://localhost:7654

@@ -1,0 +1,11 @@
+ARG COMPILED_ARTIFACTS_IMAGE=compiled-artifacts
+ARG RUNTIME_IMAGE_ARG=registry.access.redhat.com/ubi9/openjdk-11-runtime
+
+FROM $COMPILED_ARTIFACTS_IMAGE as artifacts
+
+FROM $RUNTIME_IMAGE_ARG as runtime
+COPY --chown=185:0 --from=artifacts /tmp/src/server/build/libs/robocode-tankroyale-server-0.23.0.jar /opt/robocode/
+
+WORKDIR /opt/robocode
+ENTRYPOINT ["/usr/bin/java"]
+CMD ["-jar", "robocode-tankroyale-server-0.23.0.jar"]
